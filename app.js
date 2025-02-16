@@ -122,7 +122,7 @@ bot.onText(/\/start/, (msg) => {
             one_time_keyboard: false
         }
     };
-    bot.sendMessage(chatId, "⚡ Pilih tindakan:", options);
+    bot.sendMessage(chatId, "⚡ Pilih tindakan:", { ...options });
 });
 
 // 🔹 API UNTUK MELIHAT DATA BERDASARKAN UID
