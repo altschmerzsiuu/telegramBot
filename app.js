@@ -1,6 +1,5 @@
 require("dotenv").config(); // Load environment variables
 const express = require("express");
-const bodyParser = require("body-parser");
 const TelegramBot = require("node-telegram-bot-api");
 const { createClient } = require("@supabase/supabase-js");
 
@@ -9,9 +8,15 @@ const port = process.env.PORT || 3003;
 
 // Ambil variabel dari .env
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const chatIds = process.env.TELEGRAM_CHAT_IDS.split(","); // Konversi string ke array
+const chatIds = process.env.TELEGRAM_CHAT_IDS ? process.env.TELEGRAM_CHAT_IDS.split(",") : [];
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
+
+// Pastikan semua variabel environment ada
+if (!token || !supabaseUrl || !supabaseKey || chatIds.length === 0) {
+    console.error("❌ Konfigurasi .env tidak lengkap! Periksa TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY, dan TELEGRAM_CHAT_IDS.");
+    process.exit(1);
+}
 
 // Inisialisasi bot Telegram
 const bot = new TelegramBot(token, { polling: true });
@@ -22,7 +27,7 @@ bot.on("polling_error", (error) => {
 });
 
 // Middleware untuk parsing JSON
-app.use(bodyParser.json());
+app.use(express.json());
 
 // Koneksi ke Supabase
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -43,9 +48,11 @@ app.post("/api/scan-rfid", async (req, res) => {
             .from("hewan")
             .select("*")
             .eq("rfid_code", uid)
-            .single(); // Ambil satu data
+            .maybeSingle(); // Gunakan maybeSingle() agar tidak error jika data kosong
 
-        if (error) throw error;
+        if (error) {
+            throw new Error(`Supabase Error: ${error.message}`);
+        }
 
         if (data) {
             // Format pesan ke Telegram
@@ -57,20 +64,18 @@ app.post("/api/scan-rfid", async (req, res) => {
                             `🩺 *Kesehatan:* ${data.catatan_kesehatan}`;
 
             // Kirim ke semua chat ID yang terdaftar
-            for (let id of chatIds) {
-                await bot.sendMessage(id, message, { parse_mode: "Markdown" });
-            }
+            await Promise.all(chatIds.map(id => bot.sendMessage(id, message, { parse_mode: "Markdown" })));
 
             return res.status(200).json({ success: true, message: "✅ Data dikirim ke Telegram", data });
         } else {
-            for (let id of chatIds) {
-                await bot.sendMessage(id, `⚠️ Tidak ditemukan data untuk UID: ${uid}`);
-            }
+            const notFoundMessage = `⚠️ Tidak ditemukan data untuk UID: ${uid}`;
+            await Promise.all(chatIds.map(id => bot.sendMessage(id, notFoundMessage)));
+
             return res.status(404).json({ error: "❌ Data tidak ditemukan" });
         }
     } catch (error) {
-        console.error("🔥 Error querying Supabase:", error);
-        return res.status(500).json({ error: "❌ Terjadi kesalahan saat mengambil data" });
+        console.error("🔥 Error querying Supabase:", error.message);
+        return res.status(500).json({ error: `❌ Terjadi kesalahan saat mengambil data: ${error.message}` });
     }
 });
 
