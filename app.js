@@ -18,13 +18,8 @@ if (!token || !supabaseUrl || !supabaseKey || chatIds.length === 0) {
     process.exit(1);
 }
 
-// Inisialisasi bot Telegram
-const bot = new TelegramBot(token, { polling: true });
-
-// Handle polling errors
-bot.on("polling_error", (error) => {
-    console.error("Polling error:", error);
-});
+// Inisialisasi bot Telegram tanpa polling untuk menghindari error 409
+const bot = new TelegramBot(token, { polling: false });
 
 // Middleware untuk parsing JSON
 app.use(express.json());
@@ -43,11 +38,11 @@ app.post("/api/scan-rfid", async (req, res) => {
     }
 
     try {
-        // Query ke Supabase berdasarkan RFID Code
+        // Query ke Supabase berdasarkan kolom ID, bukan rfid_code
         const { data, error } = await supabase
             .from("hewan")
             .select("*")
-            .eq("rfid_code", uid)
+            .eq("id", uid) // Ubah dari rfid_code ke id
             .maybeSingle(); // Gunakan maybeSingle() agar tidak error jika data kosong
 
         if (error) {
@@ -59,9 +54,9 @@ app.post("/api/scan-rfid", async (req, res) => {
             const message = `🐄 *Data Hewan Ditemukan* 🐄\n\n` +
                             `📌 *Nama:* ${data.nama}\n` +
                             `🆔 *RFID:* ${data.id}\n` +
-                            `⚖️ *Jenis:* ${data.jenis} kg\n` +
-                            `💉 *Usia:* ${data.usia}\n` +
-                            `🩺 *Kesehatan:* ${data.status_kesehatan}`;
+                            `⚖️ *Jenis:* ${data.jenis}\n` +
+                            `💉 *Usia:* ${data.usia} tahun\n` +
+                            `🩺 *Kesehatan:* ${data.status_kesehatan || "Tidak ada catatan"}`;
 
             // Kirim ke semua chat ID yang terdaftar
             await Promise.all(chatIds.map(id => bot.sendMessage(id, message, { parse_mode: "Markdown" })));
