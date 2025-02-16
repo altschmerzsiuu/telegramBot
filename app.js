@@ -58,10 +58,10 @@ app.post("/api/scan-rfid", async (req, res) => {
             // Format pesan ke Telegram
             const message = `🐄 *Data Hewan Ditemukan* 🐄\n\n` +
                             `📌 *Nama:* ${data.nama}\n` +
-                            `🆔 *RFID:* ${data.rfid_code}\n` +
-                            `⚖️ *Berat:* ${data.berat} kg\n` +
-                            `💉 *Riwayat Vaksin:* ${data.riwayat_vaksin}\n` +
-                            `🩺 *Kesehatan:* ${data.catatan_kesehatan}`;
+                            `🆔 *RFID:* ${data.id}\n` +
+                            `⚖️ *Jenis:* ${data.jenis} kg\n` +
+                            `💉 *Usia:* ${data.usia}\n` +
+                            `🩺 *Kesehatan:* ${data.status_kesehatan}`;
 
             // Kirim ke semua chat ID yang terdaftar
             await Promise.all(chatIds.map(id => bot.sendMessage(id, message, { parse_mode: "Markdown" })));
